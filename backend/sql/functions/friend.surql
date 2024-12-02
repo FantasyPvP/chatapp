@@ -1,26 +1,28 @@
 DEFINE FUNCTION friend::request($from: uuid, $to: uuid) {
-    CREATE FriendRequest SET
-        in = Entity:from,
-        out = Entity:to,
-        created = time::now(),
+    RELATE Entity:from -> FriendRequest -> Entity:to
+    content {
+        created = time::now()
+    };
 }
 
-DEFINE FUNCTION friend::accept($request: record<FriendRequest>) {
+DEFINE FUNCTION friend::accept($from: uuid, $to: uuid) {
 
-    LET $fsid = uuid::new();
+    -- check if there is a friend request
 
-    CREATE Friendship SET
-        dm_channel = channel::new(),
-        id = $fsid,
-        since = time::now(),   
+    IF !HasFriendRequest WHERE out = Entity:from AND in = Entity:to {
+        RETURN;
+    }
 
-    CREATE HasFriendShip SET
-        in = Entity:request.in,
-        out = Friendship:fsid,
-        nickname = Entity:request.out.displayname,
+    LET $fsid: uuid = rand::uuid::v4();
+    CREATE Friendship SET id = $fsid, channel_id = fn::channel::new(), since = time::now();
+    RELATE Entity:from -> HasFriendship -> Friendship:fsid CONTENT { nickname = Entity:from.displayname };
+    RELATE Entity:to -> HasFriendship -> Friendship:fsid CONTENT { nickname = Entity:to.displayname };
+}
 
-    CREATE HasFriendShip SET
-        in = Entity:request.out,
-        out = Friendship:fsid,
-        nickname = Entity:request.in.displayname,
+DEFINE FUNCTION friend::reject($from: uuid, $to: uuid) {
+    DELETE Entity:from -> FriendRequest WHERE out = Entity:to
+}
+
+DEFINE FUNCTION friend::remove($from: uuid, $to: uuid) {
+    DELETE Entity:from -> HasFriendship -> Friendship WHERE <- HasFriendship.out <- Entity:to
 }
