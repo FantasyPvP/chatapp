@@ -7,7 +7,7 @@ use web_sys::HtmlInputElement;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
-use crate::Route;
+use crate::{Route, API_URL};
 
 #[function_component(Signup)]
 pub fn signup_page() -> Html {
@@ -15,11 +15,13 @@ pub fn signup_page() -> Html {
     let username_ref = use_node_ref();
     let password_ref = use_node_ref();
     let confirm_password_ref = use_node_ref();
+    let token_ref = use_node_ref();
     let signup_error = use_state(|| None::<String>);
 
     let navigator_clone = navigator.clone();
     let username_ref_clone = username_ref.clone();
     let password_ref_clone = password_ref.clone();
+    let token_ref_clone = token_ref.clone();
     let confirm_password_ref_clone = confirm_password_ref.clone();
     let signup_error_clone = signup_error.clone();
     
@@ -28,8 +30,9 @@ pub fn signup_page() -> Html {
         let username = username_ref_clone.cast::<HtmlInputElement>().unwrap().value();
         let password = password_ref_clone.cast::<HtmlInputElement>().unwrap().value();
         let confirm_password = confirm_password_ref_clone.cast::<HtmlInputElement>().unwrap().value();
+        let token = token_ref_clone.cast::<HtmlInputElement>().unwrap().value();
 
-        if username.is_empty() || password.is_empty() {
+        if username.is_empty() || password.is_empty() || token.is_empty() {
             signup_error_clone.set(Some("Please fill in all fields".to_string()));
             return;
         }
@@ -42,8 +45,12 @@ pub fn signup_page() -> Html {
         let navigator = navigator_clone.clone();
         let signup_error = signup_error_clone.clone();
         spawn_local(async move {
-            match signup(username, password).await {
-                Ok(_) => navigator.push(&Route::Chat),
+            match signup(SignupRequest { 
+                username, 
+                password, 
+                token 
+            }).await {
+                Ok(_) => navigator.push(&Route::Chat { id: "test".to_string() }),
                 Err(e) => signup_error.set(Some(e)),
             }
         });
@@ -57,12 +64,12 @@ pub fn signup_page() -> Html {
     };
 
     html! {
-        <div class="login-container">
-            <form {onsubmit} class="login-form">
-                <h2 class="login-title">{"Sign Up"}</h2>
+        <div class="form-container">
+            <form {onsubmit} class="form-form">
+                <h2 class="form-title">{"Sign Up"}</h2>
                 <input 
                     ref={username_ref}
-                    class="login-input"
+                    class="form-input"
                     type="text"
                     id="username"
                     name="username"
@@ -70,7 +77,7 @@ pub fn signup_page() -> Html {
                 />
                 <input 
                     ref={password_ref}
-                    class="login-input"
+                    class="form-input"
                     type="password"
                     id="password"
                     name="password"
@@ -78,27 +85,35 @@ pub fn signup_page() -> Html {
                 />
                 <input 
                     ref={confirm_password_ref}
-                    class="login-input"
+                    class="form-input"
                     type="password"
                     id="confirm_password"
                     name="confirm_password"
                     placeholder="Confirm Password"
                 />
-                <button class="login-button" type="submit">{"Sign Up"}</button>
+                <input 
+                    ref={token_ref}
+                    class="form-input"
+                    type="password"
+                    id="access_token"
+                    name="access_token"
+                    placeholder="Access Token"
+                />
+                <button class="form-button" type="submit">{"Sign Up"}</button>
                 {
                     if let Some(error) = (*signup_error).clone() {
                         html! {
-                            <p class="login-error">{error}</p>
+                            <p class="form-error">{error}</p>
                         }
                     } else {
                         html! {}
                     }
                 }
 
-                <p class="login-text">{"Already have an account?"}</p>
+                <p class="form-text">{"Already have an account?"}</p>
                 <a onclick={go_to_login}
                     href=""
-                    class="login-button"
+                    class="form-button"
                 >
                     {"Login"}
                 </a>
@@ -111,16 +126,12 @@ pub fn signup_page() -> Html {
 struct SignupRequest {
     username: String,
     password: String,
+    token: String,
 }
 
-async fn signup(username: String, password: String) -> Result<(), String> {
-    let signup_request = SignupRequest {
-        username,
-        password,
-    };
-
-    match Request::post("http://127.0.0.1:8000/signup")
-        .json(&signup_request)
+async fn signup(req: SignupRequest) -> Result<(), String> {
+    match Request::post(format!("{API_URL}/signup").as_str())
+        .json(&req)
         .map_err(|e| e.to_string())?
         .send()
         .await

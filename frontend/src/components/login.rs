@@ -7,6 +7,7 @@ use web_sys::HtmlInputElement;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
+use crate::API_URL;
 use crate::Route;
 
 #[function_component(Login)]
@@ -32,7 +33,7 @@ pub fn login_page() -> Html {
             let login_success = login_success_clone.clone();
             spawn_local(async move {
                 match login(username, password).await {
-                    Ok(_) => navigator.push(&Route::Chat),
+                    Ok(_) => navigator.push(&Route::Chat { id: "test".to_string() }),
                     Err(_) => login_success.set(false),
                 }
             });
@@ -47,12 +48,12 @@ pub fn login_page() -> Html {
     };
 
     html! {
-        <div class="login-container">
-            <form {onsubmit} class="login-form">
-                <h2 class="login-title">{"Login"}</h2>
+        <div class="form-container">
+            <form {onsubmit} class="form-form">
+                <h2 class="form-title">{"Login"}</h2>
                 <input 
                     ref={username_ref}
-                    class="login-input"
+                    class="form-input"
                     type="text"
                     id="username"
                     name="username"
@@ -60,27 +61,27 @@ pub fn login_page() -> Html {
                 />
                 <input 
                     ref={password_ref}
-                    class="login-input"
+                    class="form-input"
                     type="password"
                     id="password"
                     name="password"
                     placeholder="Password"
                 />  
-                <button class="login-button" type="submit">{"Login"}</button>
+                <button class="form-button" type="submit">{"Login"}</button>
                 {
                     if !(*login_success) {
                         html! {
-                            <p class="login-error">{"Incorrect username or password"}</p>
+                            <p class="form-error">{"Incorrect username or password"}</p>
                         }
                     } else {
                         html! {}
                     }
                 }
 
-                <p class="login-text">{"Don't have an account?"}</p>
+                <p class="form-text">{"Don't have an account?"}</p>
                 <a onclick={go_to_signup}
                     href=""
-                    class="login-button"
+                    class="form-button"
                 >
                     {"Create Account"}
                 </a>
@@ -101,7 +102,7 @@ async fn login(username: String, password: String) -> Result<(), String> {
         password,
     };
 
-    match Request::post("http://127.0.0.1:8000/login")
+    match Request::post(format!("{API_URL}/login").as_str())
         .json(&login_request)
         .map_err(|e| e.to_string())?
         .send()

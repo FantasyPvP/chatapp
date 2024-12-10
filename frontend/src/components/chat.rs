@@ -1,30 +1,30 @@
+use gloo::console::log;
 use serde::{Deserialize, Serialize};
 use yew::prelude::*;
 use web_sys::HtmlInputElement;
 use chrono::prelude::*;
-use crate::hooks::websocket::use_websocket;
+use crate::{components::{navbar::Navbar, serverlist::ServerList}, hooks::websocket::use_websocket};
+use crate::{WS_URL, API_URL};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RealTimeMessage {
     pub message_id: i32,
-    pub user_id: i32,
+    pub user_id: String,
     pub display_name: String,
     pub created_at: i64,
     pub content: String,
 }
 
-#[function_component(Chat)]
-pub fn chat() -> Html {
-    let ws = use_websocket("ws://localhost:8000/messenger/connect/1");
-    let input_ref = use_node_ref();
-    let dark_theme = use_state(|| true);
+#[derive(PartialEq, Properties)]
+pub struct Props {
+    pub id: String
+}
 
-    // let theme_toggle = {
-    //     let dark_theme = dark_theme.clone();
-    //     Callback::from(move |_| {
-    //         dark_theme.set(!*dark_theme);
-    //     })
-    // };
+#[function_component(Chat)]
+pub fn chat(props: &Props) -> Html {
+    let id = props.id.clone();
+    let ws = use_websocket(format!("{WS_URL}/messenger/connect/1/{id}").as_str());
+    let input_ref = use_node_ref();
 
     let onsubmit = {
         let ws = ws.ws.clone();
@@ -43,30 +43,22 @@ pub fn chat() -> Html {
     };
 
     html! {
-        <div class={classes!("app-container", if *dark_theme { "dark-theme" } else { "light-theme" })}>
-            <nav class="navbar">
-                <div class="nav-brand">{"Chat App"}</div>
-                // <div class="theme-toggle">
-                //     <button onclick={theme_toggle} class="theme-button">
-                //         if *dark_theme {
-                //             {"🌞"}
-                //         } else {
-                //             {"🌙"}
-                //         }
-                //     </button>
-                // </div>
-            </nav>
-            <div class="chat-container">
+        <div class="ui-layout-horizontal">
+            // <ServerList/>
+            <div class="app-container">
                 <div class="messages-container">
                     {ws.messages.messages().iter().map(|msg| {
                         let timestamp = Local.timestamp_millis_opt(msg.created_at).unwrap();
                         let formatted_time = timestamp.format("%d/%m/%y %H:%M").to_string();
-                        let userid = msg.user_id;
-
+                        let userid = msg.user_id.clone();
                         html! {
                             <div class="message">
+                                // load profile, if not - load fallback / default
                                 <div class="profile-picture" style={ format!(
-                                    "background-image: url('http://localhost:8000/static/pfp/{userid}.png')"
+                                    "background-image: 
+                                        url('{API_URL}/static/pfp/{}.png'),
+                                        url('{API_URL}/static/public/default_pfp.png')",
+                                    userid
                                 )}></div>
                                 <div class="message-bubble">
                                     <div class="message-header">
@@ -84,14 +76,14 @@ pub fn chat() -> Html {
                         {format!("Error: {}", error)}
                     </div>
                 }
-                <form {onsubmit} class="message-form">
+                <form {onsubmit} class="ui-layout-horizontal">
                     <input
                         type="text"
                         ref={input_ref}
-                        class="message-input"
+                        class="message-input ui-element-standalone"
                         placeholder="Type a message..."
                     />
-                    <button type="submit" class="send-button">{"Send"}</button>
+                    <button type="submit" class="ui-button ui-element-standalone">{"Send"}</button>
                 </form>
             </div>
         </div>

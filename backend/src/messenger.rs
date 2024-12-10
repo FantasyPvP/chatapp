@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
+use chrono::Utc;
 use rocket::{
     futures::{
         channel::mpsc, 
@@ -16,46 +17,49 @@ use rocket::{
 
 use serde::Serialize;
 use rocket_ws::{Channel, WebSocket, stream::DuplexStream};
-use surrealdb::{RecordId, Uuid};
-
+use surrealdb::{RecordId, Uuid, Datetime};
 use crate::{auth::SessionTokenGuard, user::User};
 
+#[get("/messenger/connect/<channel_id>/<user_id>")]
+pub async fn connect<'r> (
+    // user: SessionTokenGuard,
+    user_id: String,
+    ws: WebSocket,
+    messenger: &'r rocket::State<Arc<Mutex<MessengerServer>>>,
+    channel_id: i32,
+    mut shutdown: Shutdown,
+) -> Result<Channel<'r>, Status> {
 
+    let messenger = Arc::clone(messenger.inner());
 
+    Ok(ws.channel(move | channel| {
+        Box::pin(async move {
 
-#[get("/messenger/connect/<channel_id>")]
-    pub async fn connect<'r> (
-        user: SessionTokenGuard,
-        ws: WebSocket,
-        messenger: &'r rocket::State<Arc<Mutex<MessengerServer>>>,
-        channel_id: i32,
-        mut shutdown: Shutdown,
-    ) -> Result<Channel<'r>, Status> {
-    
-        let messenger = Arc::clone(messenger.inner());
-    
-        Ok(ws.channel(move | channel| {
-            Box::pin(async move {
-    
-                let (sender, receiver) = mpsc::channel::<RealTimeMessage>(100);
-                let (ws_sender, ws_receiver) = channel.split();
-    
-                println!("REGISTERING: {}", user.id);
-                messenger.lock().await.register(user.id.clone(), channel_id, sender);
-    
-                tokio::select! {
-                    _ = inbound_message(ws_receiver, messenger.clone(), channel_id, &user) => {},
-                    _ = outbound_message(ws_sender, receiver) => {},
-                    _ = &mut shutdown => {},
-                }
-    
-                // Once the client disconnects, or the server is shutdown they are deregistered from the channel.
-                println!("DEREGISTERING: {}", user.id);
-                messenger.lock().await.deregister(user.id);
-                Ok(())
-            })
-        }))
-    }
+            let user = User {
+                id: RecordId::from_table_key("User", Uuid::new_v4().to_string()),
+                email: "".to_string(),
+                username: user_id,
+                passhash: "test".to_string(),
+                displayname: "test".to_string(),
+                joined: Datetime::from(Utc::now()),
+            };
+
+            let (sender, receiver) = mpsc::channel::<RealTimeMessage>(100);
+            let (ws_sender, ws_receiver) = channel.split();
+
+            messenger.lock().await.register(user.id.clone(), channel_id, sender);
+
+            tokio::select! {
+                _ = inbound_message(ws_receiver, messenger.clone(), channel_id, &user) => {},
+                _ = outbound_message(ws_sender, receiver) => {},
+                _ = &mut shutdown => {},
+            }
+
+            messenger.lock().await.deregister(user.id);
+            Ok(())
+        })
+    }))
+}
 
 
 
@@ -72,7 +76,7 @@ pub async fn inbound_message(
             
             let message = RealTimeMessage {
                 message_id: 0,
-                user_id: user.id.key().to_string(),
+                user_id: user.id.key().to_string().trim_start_matches('⟨').trim_end_matches('⟩').to_string(),
                 display_name: user.username.clone(),
                 created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64,
                 content: text,

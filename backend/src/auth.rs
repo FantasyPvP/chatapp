@@ -1,14 +1,12 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rand::{thread_rng, Rng};
-use rocket::{http::{CookieJar, Status}, options, post, request::{FromRequest, Outcome}, serde::json::Json, Request};
+use rocket::{http::{Cookie, CookieJar, Status}, options, post, request::{FromRequest, Outcome}, serde::json::Json, Request};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use surrealdb::RecordId;
 
-use crate::{database::DB, user::{
-    User, AuthResponse
-}};
+use crate::{database::DB, user::User};
 
 #[derive(Deserialize)]
 pub struct UserLoginForm {
@@ -22,29 +20,28 @@ pub fn login_options() -> Status {
 }
 
 
-#[post("/login", data = "<user>")]
-pub async fn login(user: Json<UserLoginForm>, jar: &CookieJar<'_>) -> Status {
-
-    println!("Logging in: {}", user.username);
-
-    if let Ok(response) = User::authenticate(user.username.clone(), user.password.clone()).await {
-        if response.matches {
-
-            let token = SessionToken::new(response.user_id).await;
-            jar.add_private(("auth", token.token));
-            println!("success!");
-
-            return Status::Ok
-        } else {
-            println!("does not match");
+#[post("/login", data = "<form>")]
+pub async fn login(form: Json<UserLoginForm>, jar: &CookieJar<'_>) -> Status {
+    match User::login(form.username.clone(), form.password.clone()).await {
+        Ok(token) => {
+            println!("logged in");
+            jar.add_private(Cookie::new("auth-token", token));
+            Status::Ok
         }
-    } else {
-        println!("response err");
+        Err(e) => {
+            println!("login failed: {}", e);
+            Status::Unauthorized
+        }
     }
-
-    println!("failed!");
-    return Status::Unauthorized
 }
+
+#[derive(Deserialize)]
+pub struct UserSignupForm {
+    username: String,
+    password: String,
+    token: String,
+}
+
 
 #[options("/signup")]
 pub fn signup_options() -> Status {
@@ -52,14 +49,75 @@ pub fn signup_options() -> Status {
 }
 
 #[post("/signup", data = "<user>")]
-pub async fn signup(user: Json<UserLoginForm>, jar: &CookieJar<'_>) -> Status {
-
-    println!("signing up: {}", user.username);
-
-    User::create(user.username.clone(), user.password.clone()).await;
-
-    login(user, jar).await
+pub async fn signup(user: Json<UserSignupForm>, jar: &CookieJar<'_>) -> Status {    
+    match User::signup(
+        user.username.clone(), 
+        user.username.clone(),
+        user.password.clone(), 
+        user.username.clone()
+    ).await {
+        Ok(token) => {
+            println!("signed up");
+            jar.add_private(Cookie::new("auth-token", token));
+            Status::Ok
+        }
+        Err(e) => {
+            println!("signup failed: {}", e);
+            Status::Conflict
+        }
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 pub type SessionTokenGuard = User;
 
@@ -76,7 +134,7 @@ impl<'r> FromRequest<'r> for SessionTokenGuard {
     type Error = ();
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(cookie) = req.cookies().get_private("auth") {
+        if let Some(cookie) = req.cookies().get_private("auth-token") {
             let token = cookie.value().to_string();
             return match DB
                 .query("

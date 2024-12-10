@@ -1,0 +1,104 @@
+
+/* Form styles */
+.form-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+}
+
+.form-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(var(--blur-amount));
+    -webkit-backdrop-filter: blur(var(--blur-amount));
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 24px var(--shadow-color);
+}
+
+.form-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    color: var(--text-color);
+    text-shadow: 0 2px 4px var(--shadow-color);
+    margin-bottom: 1rem;
+}
+
+.form-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.8rem 1rem;
+    color: var(--text-color);
+    
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.form-input:hover, .form-input:focus {
+    border-color: var(--glow-color);
+    box-shadow: 0 0 15px var(--glow-color);
+    outline: none;
+}
+
+.form-input::placeholder {
+    color: var(--text-color);
+    text-align: center;
+}
+
+.form-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.8rem 1.5rem;
+    color: var(--text-color);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    text-align: center;
+    text-decoration: none;
+}
+
+.form-button:hover {
+    border-color: var(--glow-color);
+    box-shadow: 0 0 15px var(--glow-color);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.form-text {
+    color: var(--text-color);
+    text-align: center;
+    margin: 0.5rem 0;
+}
+
+.form-link {
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.form-link:hover {
+    text-shadow: 0 0 10px var(--glow-color);
+}
+
+.form-error {
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: var(--border-radius);
+    padding: 0.8rem 1.5rem;
+    color: var(--text-color);
+    font-size: 1rem;
+    text-align: center;
+    backdrop-filter: blur(var(--blur-amount));
+    -webkit-backdrop-filter: blur(var(--blur-amount));
+    box-shadow: 0 2px 8px var(--shadow-color);
+}

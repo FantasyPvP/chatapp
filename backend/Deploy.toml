@@ -1,0 +1,11 @@
+[chatsync]
+socket_path = "/tmp/minecraft_chat/chat.sock"
+
+[discord]
+channel_id = 1315044374127841374
+
+[server.dev]
+url = "http://localhost:8080"
+
+[server.prod]
+url = "https://zxq5.dev"
